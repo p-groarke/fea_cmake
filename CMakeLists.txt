@@ -32,19 +32,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Compile Options
 function(set_compile_options TARGET EXPOSURE)
 	if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
-		message("${TARGET} : Detected Clang compiler.\n")
+		message("${TARGET} : Detected Clang compiler.")
 		target_compile_options(${TARGET} ${EXPOSURE} -Wall -Wextra -Wpedantic -Werror)
 
 	elseif (CMAKE_CXX_COMPILER_ID MATCHES GNU)
-		message("${TARGET} : Detected GNU compiler.\n")
+		message("${TARGET} : Detected GNU compiler.")
 		target_compile_options(${TARGET} ${EXPOSURE} -Wall -Wextra -Wpedantic -Werror)
 
-	# elseif (CMAKE_CXX_COMPILER_ID MATCHES Intel)
-	# 	# using Intel C++
-
 	elseif (CMAKE_CXX_COMPILER_ID MATCHES MSVC)
-		message("${TARGET} : Detected MSVC compiler.\n")
-		# target_compile_definitions(${PROJECT_NAME} ${EXPOSURE} -DFEA_VSTOOLSET=L"${CMAKE_VS_PLATFORM_TOOLSET}")
+		message("${TARGET} : Detected MSVC compiler.")
 		target_compile_definitions(${TARGET} ${EXPOSURE} NOMINMAX UNICODE _UNICODE
 			_SILENCE_CXX17_UNCAUGHT_EXCEPTION_DEPRECATION_WARNING)
 
@@ -52,7 +48,6 @@ function(set_compile_options TARGET EXPOSURE)
 			/permissive- /W4 /WX /utf-8 /MP
 			# /FAs
 		)
-		# set_target_properties(${TARGET} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 	else()
 		message(FATAL_ERROR "${TARGET} : Compiler unsupported, aborting.\n")
