@@ -1,3 +1,4 @@
+cmake_minimum_required (VERSION 3.21)
 enable_language(CXX)
 
 include(FetchContent)
@@ -30,7 +31,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Compile Options
-function(set_compile_options TARGET EXPOSURE)
+function(fea_set_compile_options TARGET EXPOSURE)
 	if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
 		message("${TARGET} : Detected Clang compiler.")
 		target_compile_options(${TARGET} ${EXPOSURE} -Wall -Wextra -Wpedantic -Werror)
@@ -55,7 +56,7 @@ function(set_compile_options TARGET EXPOSURE)
 endfunction()
 
 # Make output directory predictabe
-function(set_output_dir OUT_DIR)
+function(fea_set_output_dir OUT_DIR)
 	# Output binary to predictable location (fixes cyclic dependency issues).
 	set(BINARY_OUT_DIR ${OUT_DIR})
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
@@ -72,7 +73,7 @@ function(set_output_dir OUT_DIR)
 endfunction()
 
 # Pulls conan dependencies according to platform settings.
-function(pull_conan)
+function(fea_pull_conan)
 	message("Pulling conan dependencies.\n")
 
 	# message("sizeof_void : ${CMAKE_SIZEOF_VOID_P }\n")
@@ -108,7 +109,7 @@ endfunction()
 
 # Keeps track of input files and copies them to your output
 # directory when they've changed.
-function(copy_folder_on_build TARGET DATA_IN_DIR DATA_OUT_DIR)
+function(fea_copy_folder_on_build TARGET DATA_IN_DIR DATA_OUT_DIR)
 	set(STAMP_DIR ${CMAKE_BINARY_DIR}/stamps)
 	file(GLOB_RECURSE DATA_FILES "${DATA_IN_DIR}/*")
 
