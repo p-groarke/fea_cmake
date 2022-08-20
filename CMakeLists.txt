@@ -20,15 +20,52 @@ set(DEPENDENCY_FOLDER "Dependencies")
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER ${DEPENDENCY_FOLDER})
 
-# clang-format
-if (EXISTS ${CMAKE_SOURCE_DIR}/.clang-format)
-	configure_file(${CMAKE_SOURCE_DIR}/.clang-format ${CMAKE_BINARY_DIR}/.clang-format COPYONLY)
-endif()
-
 # Be strict
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Copies .clang-format from fea_cmake to your binary directory.
+set(FEA_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
+function(fea_import_clangformat)
+	configure_file(${FEA_CMAKE_DIR}/.clang-format ${CMAKE_SOURCE_DIR}/.clang-format COPYONLY)
+endfunction()
+
+# Make output directory predictabe
+function(fea_set_output_dir OUT_DIR)
+	# Output binary to predictable location (fixes cyclic dependency issues).
+	set(BINARY_OUT_DIR ${OUT_DIR})
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
+	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
+	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
+
+	foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
+		string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG)
+		set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BINARY_OUT_DIR} PARENT_SCOPE)
+		set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BINARY_OUT_DIR} PARENT_SCOPE)
+		set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BINARY_OUT_DIR} PARENT_SCOPE)
+	endforeach(OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES)
+	set(BINARY_OUT_DIR ${OUT_DIR} PARENT_SCOPE)
+endfunction()
+
+# Fetch a dependency through FetchContent.
+# Respects and uses the variable 'LIB_NAME_LOCAL' to pull
+# from a local directory (searches for 'PROJECT_DIR/../LIB_NAME').
+function(fea_fetch_content LIB_NAME GIT_REPOSITORY GIT_TAG)
+	set(LIB_NAME_CAPS "")
+	string(TOUPPER ${LIB_NAME} LIB_NAME_CAPS)
+
+	if (${${LIB_NAME_CAPS}_LOCAL})
+		set (FETCHCONTENT_SOURCE_DIR_${LIB_NAME_CAPS} ${CMAKE_SOURCE_DIR}/../${LIB_NAME} CACHE INTERNAL "")
+		message("\nUsing local '${LIB_NAME}' from : ${FETCHCONTENT_SOURCE_DIR_${LIB_NAME_CAPS}}")
+	endif()
+
+	FetchContent_Declare(${LIB_NAME}
+		GIT_REPOSITORY ${GIT_REPOSITORY}
+		GIT_TAG ${GIT_TAG}
+	)
+	FetchContent_MakeAvailable(${LIB_NAME})
+endfunction()
 
 # Compile Options
 function(fea_set_compile_options TARGET EXPOSURE)
@@ -53,23 +90,6 @@ function(fea_set_compile_options TARGET EXPOSURE)
 	else()
 		message(FATAL_ERROR "${TARGET} : Compiler unsupported, aborting.\n")
 	endif()
-endfunction()
-
-# Make output directory predictabe
-function(fea_set_output_dir OUT_DIR)
-	# Output binary to predictable location (fixes cyclic dependency issues).
-	set(BINARY_OUT_DIR ${OUT_DIR})
-	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
-	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
-	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
-
-	foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
-		string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG)
-		set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BINARY_OUT_DIR} PARENT_SCOPE)
-		set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BINARY_OUT_DIR} PARENT_SCOPE)
-		set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${BINARY_OUT_DIR} PARENT_SCOPE)
-	endforeach(OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES)
-	set(BINARY_OUT_DIR ${OUT_DIR} PARENT_SCOPE)
 endfunction()
 
 # Pulls conan dependencies according to platform settings.
