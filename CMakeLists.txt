@@ -51,7 +51,7 @@ endfunction()
 # Fetch a dependency through FetchContent.
 # Respects and uses the variable 'LIB_NAME_LOCAL' to pull
 # from a local directory (searches for 'PROJECT_DIR/../LIB_NAME').
-function(fea_fetch_content LIB_NAME GIT_REPOSITORY GIT_TAG)
+function(fea_fetch_content LIB_NAME REPOSITORY TAG)
 	set(LIB_NAME_CAPS "")
 	string(TOUPPER ${LIB_NAME} LIB_NAME_CAPS)
 
@@ -61,8 +61,8 @@ function(fea_fetch_content LIB_NAME GIT_REPOSITORY GIT_TAG)
 	endif()
 
 	FetchContent_Declare(${LIB_NAME}
-		GIT_REPOSITORY ${GIT_REPOSITORY}
-		GIT_TAG ${GIT_TAG}
+		GIT_REPOSITORY ${REPOSITORY}
+		GIT_TAG ${TAG}
 	)
 	FetchContent_MakeAvailable(${LIB_NAME})
 endfunction()
