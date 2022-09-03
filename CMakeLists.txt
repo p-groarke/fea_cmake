@@ -179,10 +179,12 @@ function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
 		COMMAND_ECHO STDOUT
 	)
 
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing --lockfile=conan_debug.lock
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
+		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/conan_debug.lock
 		COMMAND_ECHO STDOUT
 	)
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing --lockfile=conan_release.lock
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
+		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/conan_release.lock
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
