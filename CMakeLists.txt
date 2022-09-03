@@ -168,23 +168,23 @@ function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
 	# generate a new "full" lockfile using that input, for the current
 	# platform, options, settings, etc.
 	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
-		--build missing -s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET}
-		--lockfile-out=${CMAKE_CURRENT_BINARY_DIR}/locks/conan_debug.lock --update
+		--build=missing -s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET}
+		--lockfile-out=${CMAKE_CURRENT_BINARY_DIR}/conan_debug.lock --update
 		COMMAND_ECHO STDOUT
 	)
 
 	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
-		--build missing -s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET}
-		--lockfile-out=${CMAKE_CURRENT_BINARY_DIR}/locks/conan_release.lock --update
+		--build=missing -s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET}
+		--lockfile-out=${CMAKE_CURRENT_BINARY_DIR}/conan_release.lock --update
 		COMMAND_ECHO STDOUT
 	)
 
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/locks/conan_debug.lock
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build=missing
+		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/conan_debug.lock
 		COMMAND_ECHO STDOUT
 	)
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/locks/conan_release.lock
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build=missing
+		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/conan_release.lock
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
