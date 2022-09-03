@@ -169,13 +169,13 @@ function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
 	# platform, options, settings, etc.
 	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
 		--build missing -s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET}
-		--lockfile-out=conan_debug.lock
+		--lockfile-out=conan_debug.lock --update
 		COMMAND_ECHO STDOUT
 	)
 
 	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
 		--build missing -s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET}
-		--lockfile-out=conan_release.lock
+		--lockfile-out=conan_release.lock --update
 		COMMAND_ECHO STDOUT
 	)
 
