@@ -25,10 +25,18 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Copies .clang-format from fea_cmake to your binary directory.
+# When called from functions, current_list_dir and current_source_dir
+# are incorrect. Cache the real path to this cmakelists.txt.
 set(FEA_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
+
+# Copies .clang-format from fea_cmake to your src directory.
 function(fea_import_clangformat)
 	configure_file(${FEA_CMAKE_DIR}/.clang-format ${CMAKE_SOURCE_DIR}/.clang-format COPYONLY)
+endfunction()
+
+# Copies .clang-format from fea_cmake to your src directory.
+function(fea_import_gitignore)
+	configure_file(${FEA_CMAKE_DIR}/.gitignore ${CMAKE_SOURCE_DIR}/.gitignore COPYONLY)
 endfunction()
 
 # Make output directory predictabe
@@ -116,16 +124,68 @@ function(fea_pull_conan)
 		set(CONAN_TOOLSET)
 	endif()
 
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing -s
-		build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET}
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
+		-s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET}
 		COMMAND_ECHO STDOUT
 	)
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing -s
-		build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET}
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
+		-s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET}
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
 
+# Pulls conan dependencies according to platform settings and
+# using provided lockfile.
+# You must provide your conanfile path (conanfile.txt or conanfile.py),
+# plus the lockfile to use. This way, it works with --base lockfiles.
+#
+# Note, to create a base lockfile :
+# conan lock create ..\conanfile.txt --base
+function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
+	message("Pulling conan dependencies.\n")
+
+	# message("sizeof_void : ${CMAKE_SIZEOF_VOID_P }\n")
+	# message("host platform : ${CMAKE_HOST_SYSTEM_PROCESSOR}")
+	# message("target platform : ${CMAKE_GENERATOR_PLATFORM}\n")
+
+	# Cross-compiling to 32bits on Windows.
+	if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
+		message("Cross-compiling to 32bits.\n")
+		set(CONAN_ARCH "-s arch=x86")
+		separate_arguments(CONAN_ARCH UNIX_COMMAND "${CONAN_ARCH}")
+	else()
+		set(CONAN_ARCH)
+	endif()
+
+	if (WIN32)
+		set(CONAN_TOOLSET "-s compiler.toolset=${CMAKE_VS_PLATFORM_TOOLSET}")
+		separate_arguments(CONAN_TOOLSET UNIX_COMMAND "${CONAN_TOOLSET}")
+	else()
+		set(CONAN_TOOLSET)
+	endif()
+
+	# We expect partial lockfiles (aka, revision lockfile), so we must
+	# generate a new "full" lockfile using that input, for the current
+	# platform, options, settings, etc.
+	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
+		--build missing -s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET}
+		--lockfile-out=conan_debug.lock
+		COMMAND_ECHO STDOUT
+	)
+
+	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
+		--build missing -s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET}
+		--lockfile-out=conan_release.lock
+		COMMAND_ECHO STDOUT
+	)
+
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing --lockfile=conan_debug.lock
+		COMMAND_ECHO STDOUT
+	)
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing --lockfile=conan_release.lock
+		COMMAND_ECHO STDOUT
+	)
+endfunction()
 
 # Keeps track of input files and copies them to your output
 # directory when they've changed.
