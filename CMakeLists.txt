@@ -101,16 +101,33 @@ function(fea_set_compile_options TARGET EXPOSURE)
 endfunction()
 
 # Pulls conan dependencies according to platform settings.
+# You can pass extra conan options to this command (strings),
+# and they will be appended to the conan call.
 function(fea_pull_conan)
-	message("Pulling conan dependencies.\n")
-
+	message("Pulling conan dependencies.")
 	# message("sizeof_void : ${CMAKE_SIZEOF_VOID_P }\n")
 	# message("host platform : ${CMAKE_HOST_SYSTEM_PROCESSOR}")
 	# message("target platform : ${CMAKE_GENERATOR_PLATFORM}\n")
 
+	# Cannot use ARGN directly with list() command,
+	# so copy it to a variable first.
+	set(EXTRA_ARGS ${ARGN})
+
+	# Did we get any optional args?
+	list(LENGTH EXTRA_ARGS EXTRA_COUNT)
+	if (${EXTRA_COUNT} GREATER 0)
+		message("\tPassing extra options to conan :")
+
+		string(REPLACE ";" " " CONAN_USER_OPTIONS "${EXTRA_ARGS}")
+		separate_arguments(CONAN_USER_OPTIONS UNIX_COMMAND "${CONAN_USER_OPTIONS}")
+		message("\t'${CONAN_USER_OPTIONS}'")
+	else()
+		set(CONAN_USER_OPTIONS)
+	endif ()
+
 	# Cross-compiling to 32bits on Windows.
 	if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
-		message("Cross-compiling to 32bits.\n")
+		message("\tCross-compiling to 32bits.")
 		set(CONAN_ARCH "-s arch=x86")
 		separate_arguments(CONAN_ARCH UNIX_COMMAND "${CONAN_ARCH}")
 	else()
@@ -125,11 +142,11 @@ function(fea_pull_conan)
 	endif()
 
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET}
+		-s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
 		COMMAND_ECHO STDOUT
 	)
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET}
+		-s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
@@ -139,18 +156,36 @@ endfunction()
 # You must provide your conanfile path (conanfile.txt or conanfile.py),
 # plus the lockfile to use. This way, it works with --base lockfiles.
 #
-# Note, to create a base lockfile :
+# Note, to create a partial lockfile :
 # conan lock create ..\conanfile.txt --base
+#
+# You can pass extra conan options to this command (strings),
+# and they will be appended to the conan call.
 function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
-	message("Pulling conan dependencies.\n")
-
+	message("Pulling conan dependencies.")
 	# message("sizeof_void : ${CMAKE_SIZEOF_VOID_P }\n")
 	# message("host platform : ${CMAKE_HOST_SYSTEM_PROCESSOR}")
 	# message("target platform : ${CMAKE_GENERATOR_PLATFORM}\n")
 
+	# Cannot use ARGN directly with list() command,
+	# so copy it to a variable first.
+	set(EXTRA_ARGS ${ARGN})
+
+	# Did we get any optional args?
+	list(LENGTH EXTRA_ARGS EXTRA_COUNT)
+	if (${EXTRA_COUNT} GREATER 0)
+		message("\tPassing extra options to conan :")
+
+		string(REPLACE ";" " " CONAN_USER_OPTIONS "${EXTRA_ARGS}")
+		separate_arguments(CONAN_USER_OPTIONS UNIX_COMMAND "${CONAN_USER_OPTIONS}")
+		message("\t'${CONAN_USER_OPTIONS}'")
+	else()
+		set(CONAN_USER_OPTIONS)
+	endif ()
+
 	# Cross-compiling to 32bits on Windows.
 	if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
-		message("Cross-compiling to 32bits.\n")
+		message("\tCross-compiling to 32bits.")
 		set(CONAN_ARCH "-s arch=x86")
 		separate_arguments(CONAN_ARCH UNIX_COMMAND "${CONAN_ARCH}")
 	else()
@@ -168,13 +203,13 @@ function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
 	# generate a new "full" lockfile using that input, for the current
 	# platform, options, settings, etc.
 	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
-		--build=missing -s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET}
+		--build=missing -s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
 		--lockfile-out=conan_debug.lock --update
 		COMMAND_ECHO STDOUT
 	)
 
 	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
-		--build=missing -s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET}
+		--build=missing -s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
 		--lockfile-out=conan_release.lock --update
 		COMMAND_ECHO STDOUT
 	)
