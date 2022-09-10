@@ -100,55 +100,85 @@ function(fea_set_compile_options TARGET EXPOSURE)
 	endif()
 endfunction()
 
-# Pulls conan dependencies according to platform settings.
-# You can pass extra conan options to this command (strings),
-# and they will be appended to the conan call.
-function(fea_pull_conan)
-	message("Pulling conan dependencies.")
-	# message("sizeof_void : ${CMAKE_SIZEOF_VOID_P }\n")
-	# message("host platform : ${CMAKE_HOST_SYSTEM_PROCESSOR}")
-	# message("target platform : ${CMAKE_GENERATOR_PLATFORM}\n")
 
+# Parses input args and sets CONAN_USER_OPTIONS.
+# Finds current arch and toolset if applicable,
+# outputs to CONAN_ARCH and CONAN_TOOLSET.
+function(fea_impl_pull_conan_get_info)
 	# Cannot use ARGN directly with list() command,
 	# so copy it to a variable first.
 	set(EXTRA_ARGS ${ARGN})
 
 	# Did we get any optional args?
-	list(LENGTH EXTRA_ARGS EXTRA_COUNT)
-	if (${EXTRA_COUNT} GREATER 0)
-		message("\tPassing extra options to conan :")
+	list(LENGTH EXTRA_ARGS ARG_COUNT)
+	if (${ARG_COUNT} GREATER 0)
+		string(REPLACE ";" " " MCONAN_USER_OPTIONS "${EXTRA_ARGS}")
+		separate_arguments(MCONAN_USER_OPTIONS UNIX_COMMAND "${MCONAN_USER_OPTIONS}")
 
-		string(REPLACE ";" " " CONAN_USER_OPTIONS "${EXTRA_ARGS}")
-		separate_arguments(CONAN_USER_OPTIONS UNIX_COMMAND "${CONAN_USER_OPTIONS}")
-		message("\t'${CONAN_USER_OPTIONS}'")
+		message("\tExtra conan arguments : '${MCONAN_USER_OPTIONS}'")
 	else()
-		set(CONAN_USER_OPTIONS)
+		set(MCONAN_USER_OPTIONS)
 	endif ()
 
 	# Cross-compiling to 32bits on Windows.
 	if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
 		message("\tCross-compiling to 32bits.")
-		set(CONAN_ARCH "-s arch=x86")
-		separate_arguments(CONAN_ARCH UNIX_COMMAND "${CONAN_ARCH}")
+		set(MCONAN_ARCH "-s arch=x86")
+		separate_arguments(MCONAN_ARCH UNIX_COMMAND "${MCONAN_ARCH}")
 	else()
-		set(CONAN_ARCH)
+		set(MCONAN_ARCH)
 	endif()
 
 	if (WIN32)
-		set(CONAN_TOOLSET "-s compiler.toolset=${CMAKE_VS_PLATFORM_TOOLSET}")
-		separate_arguments(CONAN_TOOLSET UNIX_COMMAND "${CONAN_TOOLSET}")
+		set(MCONAN_TOOLSET "-s compiler.toolset=${CMAKE_VS_PLATFORM_TOOLSET}")
+		separate_arguments(MCONAN_TOOLSET UNIX_COMMAND "${MCONAN_TOOLSET}")
 	else()
-		set(CONAN_TOOLSET)
+		set(MCONAN_TOOLSET)
 	endif()
+
+	# Return vars.
+	set(CONAN_USER_OPTIONS ${MCONAN_USER_OPTIONS} PARENT_SCOPE)
+	set(CONAN_ARCH ${MCONAN_ARCH} PARENT_SCOPE)
+	set(CONAN_TOOLSET ${MCONAN_TOOLSET} PARENT_SCOPE)
+endfunction()
+
+
+# Pulls conan Debug dependencies according to platform settings.
+# You can pass extra conan options to this command (strings),
+# and they will be appended to the conan call.
+function(fea_pull_conan_debug)
+	message("Pulling conan debug dependencies.")
+
+	# Computes user extra arguments, arch and toolset.
+	fea_impl_pull_conan_get_info(${ARGN})
 
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
 		-s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
 		COMMAND_ECHO STDOUT
 	)
+endfunction()
+
+# Pulls conan Release dependencies according to platform settings.
+# You can pass extra conan options to this command (strings),
+# and they will be appended to the conan call.
+function(fea_pull_conan_release)
+	message("Pulling conan release dependencies.")
+
+	# Computes user extra arguments, arch and toolset.
+	fea_impl_pull_conan_get_info(${ARGN})
+
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
 		-s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
 		COMMAND_ECHO STDOUT
 	)
+endfunction()
+
+# Pulls conan dependencies according to platform settings.
+# You can pass extra conan options to this command (strings),
+# and they will be appended to the conan call.
+function(fea_pull_conan)
+	fea_pull_conan_debug(${ARGN})
+	fea_pull_conan_release(${ARGN})
 endfunction()
 
 # Pulls conan dependencies according to platform settings and
@@ -163,41 +193,9 @@ endfunction()
 # and they will be appended to the conan call.
 function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
 	message("Pulling conan dependencies.")
-	# message("sizeof_void : ${CMAKE_SIZEOF_VOID_P }\n")
-	# message("host platform : ${CMAKE_HOST_SYSTEM_PROCESSOR}")
-	# message("target platform : ${CMAKE_GENERATOR_PLATFORM}\n")
 
-	# Cannot use ARGN directly with list() command,
-	# so copy it to a variable first.
-	set(EXTRA_ARGS ${ARGN})
-
-	# Did we get any optional args?
-	list(LENGTH EXTRA_ARGS EXTRA_COUNT)
-	if (${EXTRA_COUNT} GREATER 0)
-		message("\tPassing extra options to conan :")
-
-		string(REPLACE ";" " " CONAN_USER_OPTIONS "${EXTRA_ARGS}")
-		separate_arguments(CONAN_USER_OPTIONS UNIX_COMMAND "${CONAN_USER_OPTIONS}")
-		message("\t'${CONAN_USER_OPTIONS}'")
-	else()
-		set(CONAN_USER_OPTIONS)
-	endif ()
-
-	# Cross-compiling to 32bits on Windows.
-	if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
-		message("\tCross-compiling to 32bits.")
-		set(CONAN_ARCH "-s arch=x86")
-		separate_arguments(CONAN_ARCH UNIX_COMMAND "${CONAN_ARCH}")
-	else()
-		set(CONAN_ARCH)
-	endif()
-
-	if (WIN32)
-		set(CONAN_TOOLSET "-s compiler.toolset=${CMAKE_VS_PLATFORM_TOOLSET}")
-		separate_arguments(CONAN_TOOLSET UNIX_COMMAND "${CONAN_TOOLSET}")
-	else()
-		set(CONAN_TOOLSET)
-	endif()
+	# Computes user extra arguments, arch and toolset.
+	fea_impl_pull_conan_get_info(${ARGN})
 
 	# We expect partial lockfiles (aka, revision lockfile), so we must
 	# generate a new "full" lockfile using that input, for the current
