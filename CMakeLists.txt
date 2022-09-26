@@ -31,12 +31,12 @@ set(FEA_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 # Copies .clang-format from fea_cmake to your src directory.
 function(fea_import_clangformat)
-	configure_file(${FEA_CMAKE_DIR}/.clang-format ${CMAKE_SOURCE_DIR}/.clang-format COPYONLY)
+	configure_file(${FEA_CMAKE_DIR}/.clang-format ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format COPYONLY)
 endfunction()
 
 # Copies .clang-format from fea_cmake to your src directory.
 function(fea_import_gitignore)
-	configure_file(${FEA_CMAKE_DIR}/.gitignore ${CMAKE_SOURCE_DIR}/.gitignore COPYONLY)
+	configure_file(${FEA_CMAKE_DIR}/.gitignore ${CMAKE_CURRENT_SOURCE_DIR}/.gitignore COPYONLY)
 endfunction()
 
 # Make output directory predictabe
@@ -202,22 +202,22 @@ function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
 	# platform, options, settings, etc.
 	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
 		--build=missing -s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
-		--lockfile-out=conan_debug.lock --update
+		--lockfile-out=${CMAKE_CURRENT_BINARY_DIR}/conan_debug.lock --update
 		COMMAND_ECHO STDOUT
 	)
 
 	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
 		--build=missing -s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
-		--lockfile-out=conan_release.lock --update
+		--lockfile-out=${CMAKE_CURRENT_BINARY_DIR}/conan_release.lock --update
 		COMMAND_ECHO STDOUT
 	)
 
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build=missing
-		--lockfile=conan_debug.lock
+		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/conan_debug.lock
 		COMMAND_ECHO STDOUT
 	)
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build=missing
-		--lockfile=conan_release.lock
+		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/conan_release.lock
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
