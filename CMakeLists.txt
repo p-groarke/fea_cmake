@@ -29,12 +29,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # are incorrect. Cache the real path to this cmakelists.txt.
 set(FEA_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
-# Copies .clang-format from fea_cmake to your src directory.
+# Copies the CMakeLists.fea_cmake.txt file to your base directory.
+function(fea_import_fea_cmake_download)
+	configure_file(${FEA_CMAKE_DIR}/CMakeLists.fea_cmake.txt ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.fea_cmake.txt COPYONLY)
+endfunction()
+
+# Copies .clang-format from fea_cmake to your base directory.
 function(fea_import_clangformat)
 	configure_file(${FEA_CMAKE_DIR}/.clang-format ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format COPYONLY)
 endfunction()
 
-# Copies .clang-format from fea_cmake to your src directory.
+# Copies .clang-format from fea_cmake to your base directory.
 function(fea_import_gitignore)
 	configure_file(${FEA_CMAKE_DIR}/.gitignore ${CMAKE_CURRENT_SOURCE_DIR}/.gitignore COPYONLY)
 endfunction()
