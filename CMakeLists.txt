@@ -105,6 +105,12 @@ function(fea_set_compile_options TARGET EXPOSURE)
 	endif()
 endfunction()
 
+# Enable required Release profiling options (Windows)
+function(fea_release_profiling TARGET)
+	target_compile_options(${TARGET} PUBLIC /Zi)
+	target_link_options(${TARGET} PUBLIC /DEBUG)
+endfunction()
+
 
 # Parses input args and sets CONAN_USER_OPTIONS.
 # Finds current arch and toolset if applicable,
