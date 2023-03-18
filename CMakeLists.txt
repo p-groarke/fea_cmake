@@ -233,9 +233,18 @@ function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
 	)
 endfunction()
 
+# Copies a data folder on build. Ignores stamps and file changes.
+function(fea_copy_on_build TARGET DATA_IN_DIR DATA_OUT_DIR)
+	add_custom_command(TARGET ${TARGET} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory ${DATA_OUT_DIR}
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${DATA_IN_DIR} ${DATA_OUT_DIR}
+	)
+endfunction()
+
 # Keeps track of input files and copies them to your output
 # directory when they've changed.
-function(fea_copy_folder_on_build TARGET DATA_IN_DIR DATA_OUT_DIR)
+# Will be supplemanted by copy_directory_if_different in cmake 3.26.
+function(fea_copy_on_build_if_different TARGET DATA_IN_DIR DATA_OUT_DIR)
 	set(STAMP_DIR ${CMAKE_BINARY_DIR}/stamps)
 	file(GLOB_RECURSE DATA_FILES "${DATA_IN_DIR}/*")
 
