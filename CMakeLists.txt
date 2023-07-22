@@ -164,7 +164,7 @@ function(fea_pull_conan_debug)
 	fea_impl_pull_conan_get_info(${ARGN})
 
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
+		-s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS} --update
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
@@ -179,7 +179,7 @@ function(fea_pull_conan_release)
 	fea_impl_pull_conan_get_info(${ARGN})
 
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
+		-s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS} --update
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
