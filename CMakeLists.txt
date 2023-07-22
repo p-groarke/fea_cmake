@@ -14,6 +14,8 @@ cmake_policy(SET CMP0011 NEW)
 # Conan search paths.
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH})
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH})
+set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
+set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_PREFIX_PATH})
 
 # Organize unrelated targets to clean IDE hierarchy.
 set(DEPENDENCY_FOLDER "Dependencies")
@@ -48,6 +50,8 @@ endfunction()
 function(fea_set_output_dir OUT_DIR)
 	# Output binary to predictable location (fixes cyclic dependency issues).
 	set(BINARY_OUT_DIR ${OUT_DIR})
+	file(MAKE_DIRECTORY ${BINARY_OUT_DIR})
+
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${BINARY_OUT_DIR} PARENT_SCOPE)
