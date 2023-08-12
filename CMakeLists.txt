@@ -144,17 +144,9 @@ function(fea_impl_pull_conan_get_info)
 		set(MCONAN_ARCH)
 	endif()
 
-	if (WIN32)
-		set(MCONAN_TOOLSET "-s compiler.toolset=${CMAKE_VS_PLATFORM_TOOLSET}")
-		separate_arguments(MCONAN_TOOLSET UNIX_COMMAND "${MCONAN_TOOLSET}")
-	else()
-		set(MCONAN_TOOLSET)
-	endif()
-
 	# Return vars.
 	set(CONAN_USER_OPTIONS ${MCONAN_USER_OPTIONS} PARENT_SCOPE)
 	set(CONAN_ARCH ${MCONAN_ARCH} PARENT_SCOPE)
-	set(CONAN_TOOLSET ${MCONAN_TOOLSET} PARENT_SCOPE)
 endfunction()
 
 
@@ -168,7 +160,7 @@ function(fea_pull_conan_debug)
 	fea_impl_pull_conan_get_info(${ARGN})
 
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS} --update
+		-s build_type=Debug ${CONAN_ARCH} ${CONAN_USER_OPTIONS} --update
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
@@ -183,7 +175,7 @@ function(fea_pull_conan_release)
 	fea_impl_pull_conan_get_info(${ARGN})
 
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS} --update
+		-s build_type=Release ${CONAN_ARCH} ${CONAN_USER_OPTIONS} --update
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
@@ -194,47 +186,6 @@ endfunction()
 function(fea_pull_conan)
 	fea_pull_conan_debug(${ARGN})
 	fea_pull_conan_release(${ARGN})
-endfunction()
-
-# Pulls conan dependencies according to platform settings and
-# using provided lockfile.
-# You must provide your conanfile path (conanfile.txt or conanfile.py),
-# plus the lockfile to use. This way, it works with --base lockfiles.
-#
-# Note, to create a partial lockfile :
-# conan lock create ..\conanfile.txt --base
-#
-# You can pass extra conan options to this command (strings),
-# and they will be appended to the conan call.
-function(fea_pull_conan_locked CONANFILEPATH LOCKFILEPATH)
-	message("Pulling conan dependencies.")
-
-	# Computes user extra arguments, arch and toolset.
-	fea_impl_pull_conan_get_info(${ARGN})
-
-	# We expect partial lockfiles (aka, revision lockfile), so we must
-	# generate a new "full" lockfile using that input, for the current
-	# platform, options, settings, etc.
-	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
-		--build=missing -s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
-		--lockfile-out=${CMAKE_CURRENT_BINARY_DIR}/conan_debug.lock --update
-		COMMAND_ECHO STDOUT
-	)
-
-	execute_process(COMMAND conan lock create ${CONANFILEPATH} --lockfile=${LOCKFILEPATH}
-		--build=missing -s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS}
-		--lockfile-out=${CMAKE_CURRENT_BINARY_DIR}/conan_release.lock --update
-		COMMAND_ECHO STDOUT
-	)
-
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build=missing
-		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/conan_debug.lock
-		COMMAND_ECHO STDOUT
-	)
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build=missing
-		--lockfile=${CMAKE_CURRENT_BINARY_DIR}/conan_release.lock
-		COMMAND_ECHO STDOUT
-	)
 endfunction()
 
 # Copies a data folder on build. Ignores stamps and file changes.
