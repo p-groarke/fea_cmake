@@ -117,164 +117,134 @@ function(fea_release_profiling TARGET)
 	target_link_options(${TARGET} PUBLIC /DEBUG)
 endfunction()
 
+# Fails build if process doesn't succeed.
+# Pass arguments of execute_process plus :
+# ERROR_MSG "My error message."
+function(fea_execute_process)
+	set(SINGLE_VAL_ARGS ERROR_MSG)
+	cmake_parse_arguments(MARGS "" "${SINGLE_VAL_ARGS}" "" ${ARGN})
+	execute_process(
+		${MARGS_UNPARSED_ARGUMENTS}
+		RESULT_VARIABLE RET
+	)
+
+	if (RET AND NOT RET EQUAL 0)
+		message(FATAL_ERROR "${MARGS_ERROR_MSG}\n")
+	endif()
+endfunction()
+
+
+# Pulls conan and everything.
+function(fea_pull_conan_imp)
+	set(SINGLE_ARGS CONAN_VER CONAN_BUILD_TYPE CONAN_MSVC_TOOLSET)
+	set(MULTI_ARGS CONAN_ARGS CONAN_ARGS_MSVC CONAN_ARGS_CLANG CONAN_ARGS_GCC)
+	cmake_parse_arguments(IN "" "${SINGLE_ARGS}" "${MULTI_ARGS}" ${ARGN})
+
+	# Sanitize inputs.
+	string(REPLACE ";" " " IN_CONAN_VER "${IN_CONAN_VER}")
+	string(REPLACE ";" " " IN_CONAN_BUILD_TYPE "${IN_CONAN_BUILD_TYPE}")
+	string(REPLACE ";" " " IN_CONAN_MSVC_TOOLSET "${IN_CONAN_MSVC_TOOLSET}")
+	string(REPLACE ";" " " IN_CONAN_ARGS "${IN_CONAN_ARGS}")
+	string(REPLACE ";" " " IN_CONAN_ARGS_MSVC "${IN_CONAN_ARGS_MSVC}")
+	string(REPLACE ";" " " IN_CONAN_ARGS_CLANG "${IN_CONAN_ARGS_CLANG}")
+	string(REPLACE ";" " " IN_CONAN_ARGS_GNU "${IN_CONAN_ARGS_GNU}")
+	# separate_arguments(IN_CONAN_VER UNIX_COMMAND "${IN_CONAN_VER}")
+	# separate_arguments(IN_CONAN_BUILD_TYPE UNIX_COMMAND "${IN_CONAN_BUILD_TYPE}")
+	# separate_arguments(IN_CONAN_ARGS UNIX_COMMAND "${IN_CONAN_ARGS}")
+	# separate_arguments(IN_CONAN_ARGS_MSVC UNIX_COMMAND "${IN_CONAN_ARGS_MSVC}")
+	# separate_arguments(IN_CONAN_ARGS_CLANG UNIX_COMMAND "${IN_CONAN_ARGS_CLANG}")
+	# separate_arguments(IN_CONAN_ARGS_GNU UNIX_COMMAND "${IN_CONAN_ARGS_GNU}")
+
+	if (NOT IN_CONAN_VER EQUAL 1 AND NOT IN_CONAN_VER EQUAL 2)
+		message(WARNING "No conan version provided, defaulting to '2'.")
+		set(IN_CONAN_VER 2)
+	endif()
+
+	# Set compile options per platform.
+	if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+		set(IN_CONAN_ARGS "${IN_CONAN_ARGS} ${IN_CONAN_ARGS_CLANG}")
+	elseif (CMAKE_CXX_COMPILER_ID MATCHES GNU)
+		set(IN_CONAN_ARGS "${IN_CONAN_ARGS} ${IN_CONAN_ARGS_GNU}")
+	elseif (CMAKE_CXX_COMPILER_ID MATCHES MSVC)
+		set(IN_CONAN_ARGS "${IN_CONAN_ARGS} ${IN_CONAN_ARGS_MSVC}")
+
+		# Toolset only supported by conan 1, translate when in conan 2 mode.
+		# TODO : Investigate this. Is it true?
+		if (NOT IN_CONAN_MSVC_TOOLSET STREQUAL "")
+			if (IN_CONAN_VER EQUAL 1)
+				set(IN_CONAN_ARGS "-s compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
+			else()
+				message(STATUS "CONAN_MSVC_TOOLSET skipped in conan 2. Investigation under way.")
+			endif()
+		endif()
+
+		# Cross-compiling to 32bits on Windows.
+		if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
+			message(STATUS "Cross-compiling to 32bits.")
+			set(IN_CONAN_ARGS "-s arch=x86 ${IN_CONAN_ARGS}")
+		endif()
+	endif()
+
+	# Conan 1 doesn't support cppstd on all compilers (apparently?)
+	if (IN_CONAN_VER EQUAL 2)
+		set(IN_CONAN_ARGS "-s compiler.cppstd=${CMAKE_CXX_STANDARD} ${IN_CONAN_ARGS}")
+	endif()
+
+	# Build-type
+	set(IN_CONAN_ARGS "-s build_type=${IN_CONAN_BUILD_TYPE} ${IN_CONAN_ARGS}")
+
+	separate_arguments(IN_CONAN_ARGS UNIX_COMMAND "${IN_CONAN_ARGS}")
+	if (NOT IN_CONAN_ARGS STREQUAL "")
+		message(STATUS "Conan arguments : '${IN_CONAN_ARGS}'")
+	endif()
+
+	fea_execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
+		${IN_CONAN_ARGS}
+		COMMAND_ECHO STDOUT
+		ERROR_MSG "Failed to pull conan dependencies."
+	)
+endfunction()
 
 # Conan 1
-
-# Parses input args and sets CONAN_USER_OPTIONS.
-# Finds current arch and toolset if applicable,
-# outputs to CONAN_ARCH and CONAN_TOOLSET.
-function(fea_impl_pull_conan1_get_info)
-	# Cannot use ARGN directly with list() command,
-	# so copy it to a variable first.
-	set(EXTRA_ARGS ${ARGN})
-
-	# Did we get any optional args?
-	list(LENGTH EXTRA_ARGS ARG_COUNT)
-	if (${ARG_COUNT} GREATER 0)
-		string(REPLACE ";" " " MCONAN_USER_OPTIONS "${EXTRA_ARGS}")
-		separate_arguments(MCONAN_USER_OPTIONS UNIX_COMMAND "${MCONAN_USER_OPTIONS}")
-
-		message("\tExtra conan arguments : '${MCONAN_USER_OPTIONS}'")
-	else()
-		set(MCONAN_USER_OPTIONS)
-	endif ()
-
-	# Cross-compiling to 32bits on Windows.
-	if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
-		message("\tCross-compiling to 32bits.")
-		set(MCONAN_ARCH "-s arch=x86")
-		separate_arguments(MCONAN_ARCH UNIX_COMMAND "${MCONAN_ARCH}")
-	else()
-		set(MCONAN_ARCH)
-	endif()
-
-	if (WIN32)
-		set(MCONAN_TOOLSET "-s compiler.toolset=${CMAKE_VS_PLATFORM_TOOLSET}")
-		separate_arguments(MCONAN_TOOLSET UNIX_COMMAND "${MCONAN_TOOLSET}")
-	else()
-		set(MCONAN_TOOLSET)
-	endif()
-
-	# Return vars.
-	set(CONAN_USER_OPTIONS ${MCONAN_USER_OPTIONS} PARENT_SCOPE)
-	set(CONAN_ARCH ${MCONAN_ARCH} PARENT_SCOPE)
-	set(CONAN_TOOLSET ${MCONAN_TOOLSET} PARENT_SCOPE)
-endfunction()
-
-
-# Pulls conan Debug dependencies according to platform settings.
-# You can pass extra conan options to this command (strings),
-# and they will be appended to the conan call.
-function(fea_pull_conan1_debug)
-	message("Pulling conan 1 debug dependencies.")
-
-	# Computes user extra arguments, arch and toolset.
-	fea_impl_pull_conan1_get_info(${ARGN})
-
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS} --update
-		COMMAND_ECHO STDOUT
-	)
-endfunction()
-
-# Pulls conan Release dependencies according to platform settings.
-# You can pass extra conan options to this command (strings),
-# and they will be appended to the conan call.
-function(fea_pull_conan1_release)
-	message("Pulling conan release dependencies.")
-
-	# Computes user extra arguments, arch and toolset.
-	fea_impl_pull_conan1_get_info(${ARGN})
-
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS} --update
-		COMMAND_ECHO STDOUT
-	)
-endfunction()
-
 # Pulls conan dependencies according to platform settings.
 # You can pass extra conan options to this command (strings),
 # and they will be appended to the conan call.
+# Supported single-arguments :
+#
+# Supported multi-arguments :
+# CONAN_ARGS, CONAN_ARGS_CLANG, CONAN_ARGS_GNU, CONAN_ARGS_MSVC
 function(fea_pull_conan)
-	fea_pull_conan1_debug(${ARGN})
-	fea_pull_conan1_release(${ARGN})
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 1)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 1)
 endfunction()
 
+function(fea_pull_conan_debug)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 1)
+endfunction()
+
+function(fea_pull_conan_release)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 1)
+endfunction()
 
 # Conan 2
-
-# Parses input args and sets CONAN_USER_OPTIONS.
-# Finds current arch and toolset if applicable,
-# outputs to CONAN_ARCH and CONAN_TOOLSET.
-function(fea_impl_pull_conan2_get_info)
-	# Cannot use ARGN directly with list() command,
-	# so copy it to a variable first.
-	set(EXTRA_ARGS ${ARGN})
-
-	# Did we get any optional args?
-	list(LENGTH EXTRA_ARGS ARG_COUNT)
-	if (${ARG_COUNT} GREATER 0)
-		string(REPLACE ";" " " MCONAN_USER_OPTIONS "${EXTRA_ARGS}")
-		separate_arguments(MCONAN_USER_OPTIONS UNIX_COMMAND "${MCONAN_USER_OPTIONS}")
-
-		message("\tExtra conan arguments : '${MCONAN_USER_OPTIONS}'")
-	else()
-		set(MCONAN_USER_OPTIONS)
-	endif ()
-
-	# Cross-compiling to 32bits on Windows.
-	if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
-		message("\tCross-compiling to 32bits.")
-		set(MCONAN_ARCH "-s arch=x86")
-		separate_arguments(MCONAN_ARCH UNIX_COMMAND "${MCONAN_ARCH}")
-	else()
-		set(MCONAN_ARCH)
-	endif()
-
-	# Return vars.
-	set(CONAN_USER_OPTIONS ${MCONAN_USER_OPTIONS} PARENT_SCOPE)
-	set(CONAN_ARCH ${MCONAN_ARCH} PARENT_SCOPE)
-endfunction()
-
-
-# Pulls conan Debug dependencies according to platform settings.
-# You can pass extra conan options to this command (strings),
-# and they will be appended to the conan call.
-function(fea_pull_conan2_debug)
-	message("Pulling conan debug dependencies.")
-
-	# Computes user extra arguments, arch and toolset.
-	fea_impl_pull_conan2_get_info(${ARGN})
-
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Debug -s compiler.cppstd=${CMAKE_CXX_STANDARD} ${CONAN_ARCH}
-		${CONAN_USER_OPTIONS} --update --output-folder ${CMAKE_SOURCE_DIR}
-		COMMAND_ECHO STDOUT
-	)
-endfunction()
-
-# Pulls conan Release dependencies according to platform settings.
-# You can pass extra conan options to this command (strings),
-# and they will be appended to the conan call.
-function(fea_pull_conan2_release)
-	message("Pulling conan release dependencies.")
-
-	# Computes user extra arguments, arch and toolset.
-	fea_impl_pull_conan2_get_info(${ARGN})
-
-	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		-s build_type=Release -s compiler.cppstd=${CMAKE_CXX_STANDARD} ${CONAN_ARCH}
-		${CONAN_USER_OPTIONS} --update --output-folder ${CMAKE_SOURCE_DIR}
-		COMMAND_ECHO STDOUT
-	)
-endfunction()
-
 # Pulls conan dependencies according to platform settings.
 # You can pass extra conan options to this command (strings),
 # and they will be appended to the conan call.
+# Supported single-arguments :
+#
+# Supported multi-arguments :
+# CONAN_ARGS, CONAN_ARGS_CLANG, CONAN_ARGS_GNU, CONAN_ARGS_MSVC
 function(fea_pull_conan2)
-	fea_pull_conan2_debug(${ARGN})
-	fea_pull_conan2_release(${ARGN})
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 2)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 2)
+endfunction()
+
+function(fea_pull_conan2_debug)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 2)
+endfunction()
+
+function(fea_pull_conan2_release)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 2)
 endfunction()
 
 
