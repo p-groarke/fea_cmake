@@ -16,10 +16,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH})
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH})
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_PREFIX_PATH})
-set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/Release/generators ${CMAKE_MODULE_PATH})
-set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/Release/generators ${CMAKE_PREFIX_PATH})
-set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/Debug/generators ${CMAKE_MODULE_PATH})
-set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/Debug/generators ${CMAKE_PREFIX_PATH})
+set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators ${CMAKE_MODULE_PATH})
+set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators ${CMAKE_PREFIX_PATH})
 
 # Organize unrelated targets to clean IDE hierarchy.
 set(DEPENDENCY_FOLDER "Dependencies")
@@ -120,10 +118,95 @@ function(fea_release_profiling TARGET)
 endfunction()
 
 
+# Conan 1
+
 # Parses input args and sets CONAN_USER_OPTIONS.
 # Finds current arch and toolset if applicable,
 # outputs to CONAN_ARCH and CONAN_TOOLSET.
-function(fea_impl_pull_conan_get_info)
+function(fea_impl_pull_conan1_get_info)
+	# Cannot use ARGN directly with list() command,
+	# so copy it to a variable first.
+	set(EXTRA_ARGS ${ARGN})
+
+	# Did we get any optional args?
+	list(LENGTH EXTRA_ARGS ARG_COUNT)
+	if (${ARG_COUNT} GREATER 0)
+		string(REPLACE ";" " " MCONAN_USER_OPTIONS "${EXTRA_ARGS}")
+		separate_arguments(MCONAN_USER_OPTIONS UNIX_COMMAND "${MCONAN_USER_OPTIONS}")
+
+		message("\tExtra conan arguments : '${MCONAN_USER_OPTIONS}'")
+	else()
+		set(MCONAN_USER_OPTIONS)
+	endif ()
+
+	# Cross-compiling to 32bits on Windows.
+	if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
+		message("\tCross-compiling to 32bits.")
+		set(MCONAN_ARCH "-s arch=x86")
+		separate_arguments(MCONAN_ARCH UNIX_COMMAND "${MCONAN_ARCH}")
+	else()
+		set(MCONAN_ARCH)
+	endif()
+
+	if (WIN32)
+		set(MCONAN_TOOLSET "-s compiler.toolset=${CMAKE_VS_PLATFORM_TOOLSET}")
+		separate_arguments(MCONAN_TOOLSET UNIX_COMMAND "${MCONAN_TOOLSET}")
+	else()
+		set(MCONAN_TOOLSET)
+	endif()
+
+	# Return vars.
+	set(CONAN_USER_OPTIONS ${MCONAN_USER_OPTIONS} PARENT_SCOPE)
+	set(CONAN_ARCH ${MCONAN_ARCH} PARENT_SCOPE)
+	set(CONAN_TOOLSET ${MCONAN_TOOLSET} PARENT_SCOPE)
+endfunction()
+
+
+# Pulls conan Debug dependencies according to platform settings.
+# You can pass extra conan options to this command (strings),
+# and they will be appended to the conan call.
+function(fea_pull_conan1_debug)
+	message("Pulling conan 1 debug dependencies.")
+
+	# Computes user extra arguments, arch and toolset.
+	fea_impl_pull_conan1_get_info(${ARGN})
+
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
+		-s build_type=Debug ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS} --update
+		COMMAND_ECHO STDOUT
+	)
+endfunction()
+
+# Pulls conan Release dependencies according to platform settings.
+# You can pass extra conan options to this command (strings),
+# and they will be appended to the conan call.
+function(fea_pull_conan1_release)
+	message("Pulling conan release dependencies.")
+
+	# Computes user extra arguments, arch and toolset.
+	fea_impl_pull_conan1_get_info(${ARGN})
+
+	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
+		-s build_type=Release ${CONAN_ARCH} ${CONAN_TOOLSET} ${CONAN_USER_OPTIONS} --update
+		COMMAND_ECHO STDOUT
+	)
+endfunction()
+
+# Pulls conan dependencies according to platform settings.
+# You can pass extra conan options to this command (strings),
+# and they will be appended to the conan call.
+function(fea_pull_conan)
+	fea_pull_conan1_debug(${ARGN})
+	fea_pull_conan1_release(${ARGN})
+endfunction()
+
+
+# Conan 2
+
+# Parses input args and sets CONAN_USER_OPTIONS.
+# Finds current arch and toolset if applicable,
+# outputs to CONAN_ARCH and CONAN_TOOLSET.
+function(fea_impl_pull_conan2_get_info)
 	# Cannot use ARGN directly with list() command,
 	# so copy it to a variable first.
 	set(EXTRA_ARGS ${ARGN})
@@ -157,15 +240,15 @@ endfunction()
 # Pulls conan Debug dependencies according to platform settings.
 # You can pass extra conan options to this command (strings),
 # and they will be appended to the conan call.
-function(fea_pull_conan_debug)
+function(fea_pull_conan2_debug)
 	message("Pulling conan debug dependencies.")
 
 	# Computes user extra arguments, arch and toolset.
-	fea_impl_pull_conan_get_info(${ARGN})
+	fea_impl_pull_conan2_get_info(${ARGN})
 
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
 		-s build_type=Debug -s compiler.cppstd=${CMAKE_CXX_STANDARD} ${CONAN_ARCH}
-		${CONAN_USER_OPTIONS} --update
+		${CONAN_USER_OPTIONS} --update --output-folder ${CMAKE_SOURCE_DIR}
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
@@ -173,15 +256,15 @@ endfunction()
 # Pulls conan Release dependencies according to platform settings.
 # You can pass extra conan options to this command (strings),
 # and they will be appended to the conan call.
-function(fea_pull_conan_release)
+function(fea_pull_conan2_release)
 	message("Pulling conan release dependencies.")
 
 	# Computes user extra arguments, arch and toolset.
-	fea_impl_pull_conan_get_info(${ARGN})
+	fea_impl_pull_conan2_get_info(${ARGN})
 
 	execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
 		-s build_type=Release -s compiler.cppstd=${CMAKE_CXX_STANDARD} ${CONAN_ARCH}
-		${CONAN_USER_OPTIONS} --update
+		${CONAN_USER_OPTIONS} --update --output-folder ${CMAKE_SOURCE_DIR}
 		COMMAND_ECHO STDOUT
 	)
 endfunction()
@@ -189,10 +272,11 @@ endfunction()
 # Pulls conan dependencies according to platform settings.
 # You can pass extra conan options to this command (strings),
 # and they will be appended to the conan call.
-function(fea_pull_conan)
-	fea_pull_conan_debug(${ARGN})
-	fea_pull_conan_release(${ARGN})
+function(fea_pull_conan2)
+	fea_pull_conan2_debug(${ARGN})
+	fea_pull_conan2_release(${ARGN})
 endfunction()
+
 
 # Copies a data folder on build. Ignores stamps and file changes.
 function(fea_copy_on_build TARGET DATA_IN_DIR DATA_OUT_DIR)
