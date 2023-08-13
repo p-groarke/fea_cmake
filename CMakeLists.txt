@@ -12,12 +12,24 @@ cmake_policy(SET CMP0054 NEW)
 cmake_policy(SET CMP0011 NEW)
 
 # Conan search paths.
-set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH})
-set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH})
-set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
-set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_PREFIX_PATH})
-set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators ${CMAKE_MODULE_PATH})
-set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators ${CMAKE_PREFIX_PATH})
+set(CMAKE_MODULE_PATH
+	${CMAKE_BINARY_DIR}
+	${CMAKE_BINARY_DIR}/generators
+	${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
+	# ${CMAKE_CURRENT_BINARY_DIR}
+	# ${CMAKE_CURRENT_BINARY_DIR}/generators
+	# ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
+	${CMAKE_MODULE_PATH}
+)
+set(CMAKE_PREFIX_PATH
+	${CMAKE_BINARY_DIR}
+	${CMAKE_BINARY_DIR}/generators
+	${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
+	# ${CMAKE_CURRENT_BINARY_DIR}
+	# ${CMAKE_CURRENT_BINARY_DIR}/generators
+	# ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
+	${CMAKE_PREFIX_PATH}
+)
 
 # Organize unrelated targets to clean IDE hierarchy.
 set(DEPENDENCY_FOLDER "Dependencies")
@@ -76,7 +88,7 @@ function(fea_fetch_content LIB_NAME REPOSITORY TAG)
 
 	if (${${LIB_NAME_CAPS}_LOCAL})
 		set (FETCHCONTENT_SOURCE_DIR_${LIB_NAME_CAPS} ${CMAKE_SOURCE_DIR}/../${LIB_NAME} CACHE INTERNAL "")
-		message("\nUsing local '${LIB_NAME}' from : ${FETCHCONTENT_SOURCE_DIR_${LIB_NAME_CAPS}}")
+		message(STATUS "Using local '${LIB_NAME}' from : ${FETCHCONTENT_SOURCE_DIR_${LIB_NAME_CAPS}}")
 	endif()
 
 	FetchContent_Declare(${LIB_NAME}
@@ -150,16 +162,8 @@ function(fea_pull_conan_imp)
 	string(REPLACE ";" " " IN_CONAN_ARGS_GNU "${IN_CONAN_ARGS_GNU}")
 
 	if (NOT IN_CONAN_VER EQUAL 1 AND NOT IN_CONAN_VER EQUAL 2)
-		message(WARNING "No conan version provided, defaulting to '2'.")
-		set(IN_CONAN_VER 2)
-	endif()
-
-	# Install user settings to fix msvc toolsets in conan 2.
-	if (IN_CONAN_VER EQUAL 2)
-		fea_execute_process(COMMAND conan config install ${FEA_CMAKE_DIR}/.conan/settings_user.yml
-			COMMAND_ECHO STDOUT
-			ERROR_MSG "Couldn't install conan settings_user.xml"
-		)
+		message(WARNING "No conan version provided, defaulting to '1'.")
+		set(IN_CONAN_VER 1)
 	endif()
 
 	# Set compile options per platform.
@@ -170,14 +174,16 @@ function(fea_pull_conan_imp)
 	elseif (CMAKE_CXX_COMPILER_ID MATCHES MSVC)
 		set(IN_CONAN_ARGS "${IN_CONAN_ARGS} ${IN_CONAN_ARGS_MSVC}")
 
+		if (NOT IN_CONAN_MSVC_TOOLSET STREQUAL "")
+			# Assuming this OK with added conan 2 toolsets in settings.
+			set(IN_CONAN_ARGS "-s compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
+
 		# TODO : Investigate some more. Maybe conan 2 has a different way to change toolset?
-		# if (NOT IN_CONAN_MSVC_TOOLSET STREQUAL "")
-		# 	set(IN_CONAN_ARGS "-s compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
 		# 	if (IN_CONAN_VER EQUAL 1)
 		# 	else()
 		# 		message(STATUS "CONAN_MSVC_TOOLSET skipped in conan 2. Investigation under way.")
 		# 	endif()
-		# endif()
+		endif()
 
 		# Cross-compiling to 32bits on Windows.
 		if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
@@ -186,24 +192,39 @@ function(fea_pull_conan_imp)
 		endif()
 	endif()
 
-	# Conan 1 doesn't support cppstd on all compilers (apparently?)
+	# Conan 1.
+	if (IN_CONAN_VER EQUAL 1)
+		# set(IN_CONAN_ARGS "--output-folder ${CMAKE_BINARY_DIR} ${IN_CONAN_ARGS}")
+	endif()
+
+	# Conan 2.
 	if (IN_CONAN_VER EQUAL 2)
+		# Install user settings to fix msvc toolsets in conan 2.
+		fea_execute_process(COMMAND conan config install ${FEA_CMAKE_DIR}/.conan/settings_user.yml
+			COMMAND_ECHO STDOUT
+			ERROR_MSG "Couldn't install conan settings_user.xml"
+		)
+
+		# cppstd
 		set(IN_CONAN_ARGS "-s compiler.cppstd=${CMAKE_CXX_STANDARD} ${IN_CONAN_ARGS}")
+
+		# output-folder shenanigans
+		set(IN_CONAN_ARGS "--output-folder ${CMAKE_SOURCE_DIR} ${IN_CONAN_ARGS}")
 	endif()
 
 	# Build-type
 	set(IN_CONAN_ARGS "-s build_type=${IN_CONAN_BUILD_TYPE} ${IN_CONAN_ARGS}")
 
+	# Finally, sanitize and call conan.
 	separate_arguments(IN_CONAN_ARGS UNIX_COMMAND "${IN_CONAN_ARGS}")
-	if (NOT IN_CONAN_ARGS STREQUAL "")
-		message(STATUS "Conan arguments : '${IN_CONAN_ARGS}'")
-	endif()
+	message(STATUS "Conan arguments : '${IN_CONAN_ARGS}'")
 
-	fea_execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR} --build missing
-		${IN_CONAN_ARGS}
+	fea_execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR}
+		${IN_CONAN_ARGS} --build missing --update
 		COMMAND_ECHO STDOUT
 		ERROR_MSG "Failed to pull conan dependencies."
 	)
+
 endfunction()
 
 # Conan
