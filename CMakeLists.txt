@@ -148,16 +148,18 @@ function(fea_pull_conan_imp)
 	string(REPLACE ";" " " IN_CONAN_ARGS_MSVC "${IN_CONAN_ARGS_MSVC}")
 	string(REPLACE ";" " " IN_CONAN_ARGS_CLANG "${IN_CONAN_ARGS_CLANG}")
 	string(REPLACE ";" " " IN_CONAN_ARGS_GNU "${IN_CONAN_ARGS_GNU}")
-	# separate_arguments(IN_CONAN_VER UNIX_COMMAND "${IN_CONAN_VER}")
-	# separate_arguments(IN_CONAN_BUILD_TYPE UNIX_COMMAND "${IN_CONAN_BUILD_TYPE}")
-	# separate_arguments(IN_CONAN_ARGS UNIX_COMMAND "${IN_CONAN_ARGS}")
-	# separate_arguments(IN_CONAN_ARGS_MSVC UNIX_COMMAND "${IN_CONAN_ARGS_MSVC}")
-	# separate_arguments(IN_CONAN_ARGS_CLANG UNIX_COMMAND "${IN_CONAN_ARGS_CLANG}")
-	# separate_arguments(IN_CONAN_ARGS_GNU UNIX_COMMAND "${IN_CONAN_ARGS_GNU}")
 
 	if (NOT IN_CONAN_VER EQUAL 1 AND NOT IN_CONAN_VER EQUAL 2)
 		message(WARNING "No conan version provided, defaulting to '2'.")
 		set(IN_CONAN_VER 2)
+	endif()
+
+	# Install user settings to fix msvc toolsets in conan 2.
+	if (IN_CONAN_VER EQUAL 2)
+		fea_execute_process(COMMAND conan config install ${FEA_CMAKE_DIR}/.conan/settings_user.yml
+			COMMAND_ECHO STDOUT
+			ERROR_MSG "Couldn't install conan settings_user.xml"
+		)
 	endif()
 
 	# Set compile options per platform.
@@ -168,15 +170,14 @@ function(fea_pull_conan_imp)
 	elseif (CMAKE_CXX_COMPILER_ID MATCHES MSVC)
 		set(IN_CONAN_ARGS "${IN_CONAN_ARGS} ${IN_CONAN_ARGS_MSVC}")
 
-		# Toolset only supported by conan 1, translate when in conan 2 mode.
-		# TODO : Investigate this. Is it true?
-		if (NOT IN_CONAN_MSVC_TOOLSET STREQUAL "")
-			if (IN_CONAN_VER EQUAL 1)
-				set(IN_CONAN_ARGS "-s compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
-			else()
-				message(STATUS "CONAN_MSVC_TOOLSET skipped in conan 2. Investigation under way.")
-			endif()
-		endif()
+		# TODO : Investigate some more. Maybe conan 2 has a different way to change toolset?
+		# if (NOT IN_CONAN_MSVC_TOOLSET STREQUAL "")
+		# 	set(IN_CONAN_ARGS "-s compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
+		# 	if (IN_CONAN_VER EQUAL 1)
+		# 	else()
+		# 		message(STATUS "CONAN_MSVC_TOOLSET skipped in conan 2. Investigation under way.")
+		# 	endif()
+		# endif()
 
 		# Cross-compiling to 32bits on Windows.
 		if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
@@ -205,14 +206,18 @@ function(fea_pull_conan_imp)
 	)
 endfunction()
 
-# Conan 1
+# Conan
 # Pulls conan dependencies according to platform settings.
 # You can pass extra conan options to this command (strings),
 # and they will be appended to the conan call.
+#
 # Supported single-arguments :
+# CONAN_MSVC_TOOLSET, CONAN_VER, CONAN_BUILD_TYPE
 #
 # Supported multi-arguments :
 # CONAN_ARGS, CONAN_ARGS_CLANG, CONAN_ARGS_GNU, CONAN_ARGS_MSVC
+
+# Conan 1
 function(fea_pull_conan)
 	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 1)
 	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 1)
@@ -227,13 +232,6 @@ function(fea_pull_conan_release)
 endfunction()
 
 # Conan 2
-# Pulls conan dependencies according to platform settings.
-# You can pass extra conan options to this command (strings),
-# and they will be appended to the conan call.
-# Supported single-arguments :
-#
-# Supported multi-arguments :
-# CONAN_ARGS, CONAN_ARGS_CLANG, CONAN_ARGS_GNU, CONAN_ARGS_MSVC
 function(fea_pull_conan2)
 	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 2)
 	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 2)
