@@ -193,9 +193,8 @@ function(fea_pull_conan_imp)
 	endif()
 
 	# Conan 1.
-	if (IN_CONAN_VER EQUAL 1)
-		# set(IN_CONAN_ARGS "--output-folder ${CMAKE_BINARY_DIR} ${IN_CONAN_ARGS}")
-	endif()
+	# if (IN_CONAN_VER EQUAL 1)
+	# endif()
 
 	# Conan 2.
 	if (IN_CONAN_VER EQUAL 2)
@@ -208,9 +207,12 @@ function(fea_pull_conan_imp)
 		# cppstd
 		set(IN_CONAN_ARGS "-s compiler.cppstd=${CMAKE_CXX_STANDARD} ${IN_CONAN_ARGS}")
 
-		# output-folder shenanigans
-		set(IN_CONAN_ARGS "--output-folder ${CMAKE_SOURCE_DIR} ${IN_CONAN_ARGS}")
+		# # output-folder shenanigans
+		# set(IN_CONAN_ARGS "--output-folder ${CMAKE_SOURCE_DIR} ${IN_CONAN_ARGS}")
 	endif()
+
+	# output-folder shenanigans for FetchContent.
+	set(IN_CONAN_ARGS "--output-folder ${CMAKE_SOURCE_DIR} ${IN_CONAN_ARGS}")
 
 	# Build-type
 	set(IN_CONAN_ARGS "-s build_type=${IN_CONAN_BUILD_TYPE} ${IN_CONAN_ARGS}")
