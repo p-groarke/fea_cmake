@@ -204,9 +204,6 @@ function(fea_pull_conan_imp)
 			ERROR_MSG "Couldn't install conan settings_user.xml"
 		)
 
-		# cppstd
-		set(IN_CONAN_ARGS "-s compiler.cppstd=${CMAKE_CXX_STANDARD} ${IN_CONAN_ARGS}")
-
 		# # output-folder shenanigans
 		# set(IN_CONAN_ARGS "--output-folder ${CMAKE_SOURCE_DIR} ${IN_CONAN_ARGS}")
 	endif()
@@ -216,6 +213,9 @@ function(fea_pull_conan_imp)
 
 	# Build-type
 	set(IN_CONAN_ARGS "-s build_type=${IN_CONAN_BUILD_TYPE} ${IN_CONAN_ARGS}")
+
+	# cppstd
+	set(IN_CONAN_ARGS "-s compiler.cppstd=${CMAKE_CXX_STANDARD} ${IN_CONAN_ARGS}")
 
 	# Finally, sanitize and call conan.
 	separate_arguments(IN_CONAN_ARGS UNIX_COMMAND "${IN_CONAN_ARGS}")
