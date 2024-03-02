@@ -382,3 +382,19 @@ function(fea_target_replace_definitions TARGET VISIBILITY)
 		endif()
 	endforeach(OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES)
 endfunction()
+
+# Enables static linking MSVC runtime library.
+# Q : Equivalent on other OSes?
+function(fea_static_runtime TARGET)
+	if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+		set_target_properties(${TARGET} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+	endif()
+endfunction()
+
+# Enables MSVC whole program optimization on release builds.
+function(fea_whole_program_optimization TARGET VISIBILITY)
+	if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+		target_compile_options(${TARGET} ${VISIBILITY} $<$<CONFIG:Release>:/GL>)
+		target_link_options(${TARGET} ${VISIBILITY} $<$<CONFIG:Release>:/LTCG>)
+	endif()
+endfunction()
