@@ -8,42 +8,45 @@ include(GoogleTest)
 include(GenerateExportHeader)
 include(GetPrerequisites)
 
-cmake_policy(SET CMP0054 NEW)
-cmake_policy(SET CMP0011 NEW)
+# Applies standard and expected settings to your cmake. Opt-in.
+macro(fea_standard_settings)
+	cmake_policy(SET CMP0054 NEW)
+	cmake_policy(SET CMP0011 NEW)
 
-# Conan search paths.
-set(CMAKE_MODULE_PATH
-	${CMAKE_BINARY_DIR}
-	${CMAKE_BINARY_DIR}/generators
-	${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
-	# ${CMAKE_CURRENT_BINARY_DIR}
-	# ${CMAKE_CURRENT_BINARY_DIR}/generators
-	# ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
-	${CMAKE_MODULE_PATH}
-)
-set(CMAKE_PREFIX_PATH
-	${CMAKE_BINARY_DIR}
-	${CMAKE_BINARY_DIR}/generators
-	${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
-	# ${CMAKE_CURRENT_BINARY_DIR}
-	# ${CMAKE_CURRENT_BINARY_DIR}/generators
-	# ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
-	${CMAKE_PREFIX_PATH}
-)
+	# Conan search paths.
+	set(CMAKE_MODULE_PATH
+		${CMAKE_BINARY_DIR}
+		${CMAKE_BINARY_DIR}/generators
+		${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
+		# ${CMAKE_CURRENT_BINARY_DIR}
+		# ${CMAKE_CURRENT_BINARY_DIR}/generators
+		# ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
+		${CMAKE_MODULE_PATH}
+	)
+	set(CMAKE_PREFIX_PATH
+		${CMAKE_BINARY_DIR}
+		${CMAKE_BINARY_DIR}/generators
+		${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
+		# ${CMAKE_CURRENT_BINARY_DIR}
+		# ${CMAKE_CURRENT_BINARY_DIR}/generators
+		# ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/generators
+		${CMAKE_PREFIX_PATH}
+	)
 
-# Organize unrelated targets to clean IDE hierarchy.
-set(DEPENDENCY_FOLDER "Dependencies")
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER ${DEPENDENCY_FOLDER})
+	# Organize unrelated targets to clean IDE hierarchy.
+	set(DEPENDENCY_FOLDER "Dependencies")
+	set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+	set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER ${DEPENDENCY_FOLDER})
 
-# Be strict
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+	# Be strict
+	set(CMAKE_C_STANDARD 11)
+	set(CMAKE_CXX_STANDARD_REQUIRED ON)
+	set(CMAKE_CXX_EXTENSIONS OFF)
 
-# When called from functions, current_list_dir and current_source_dir
-# are incorrect. Cache the real path to this cmakelists.txt.
-set(FEA_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
+	# When called from functions, current_list_dir and current_source_dir
+	# are incorrect. Cache the real path to this cmakelists.txt.
+	set(FEA_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
+endmacro()
 
 # Copies the CMakeLists.fea_cmake.txt file to your base directory.
 function(fea_import_fea_cmake_download)
@@ -313,4 +316,69 @@ function(fea_copy_on_build_if_different TARGET DATA_IN_DIR DATA_OUT_DIR)
 
 	# set_target_properties(Shaders PROPERTIES FOLDER ${PROJECT_NAME}) # Pretty hacky :) Doesn't work on VS
 	add_dependencies(${TARGET} ${TARGET}_data)
+endfunction()
+
+# Converts any cmake bool to 0 or 1.
+function(fea_bool_to_int IN_VAR OUT_VAR)
+	if (${IN_VAR})
+		set(${OUT_VAR} 1 PARENT_SCOPE)
+	else()
+		set(${OUT_VAR} 0 PARENT_SCOPE)
+	endif()
+endfunction()
+
+# Converts any cmake bool to False or True
+function(fea_bool_to_pybool IN_VAR OUT_VAR)
+	if (${IN_VAR})
+		set(${OUT_VAR} True PARENT_SCOPE)
+	else()
+		set(${OUT_VAR} False PARENT_SCOPE)
+	endif()
+endfunction()
+
+# Used internally.
+function(fea_target_replace_definitions_imp TARGET VISIBILITY PROPERTY_NAME)
+	get_target_property(MDEFINITIONS ${TARGET} ${PROPERTY_NAME})
+	if (MDEFINITIONS STREQUAL "MDEFINITIONS-NOTFOUND")
+		message(FATAL_ERROR "fea_target_replace_definitions : Couldn't parse target definitions '${PROPERTY_NAME}'."
+			"Did you provide visibility PUBLIC, INTERFACE, PRIVATE?")
+	endif()
+
+	# Replace definitions.
+	foreach(MDEF ${ARGN})
+		string(REGEX REPLACE "=.*" "" MDEF_FILT ${MDEF})
+		list(FILTER MDEFINITIONS EXCLUDE REGEX "^${MDEF_FILT}")
+		list(APPEND MDEFINITIONS ${MDEF})
+	endforeach()
+	set_target_properties(${TARGET} PROPERTIES ${PROPERTY_NAME} "${MDEFINITIONS}")
+endfunction()
+
+# Replace a target definition.
+# Ex : fea_target_replace_definitions(mytarget PRIVATE Bla=0 Blee=1)
+#
+# TODO : fea_target_erase_definitions
+function(fea_target_replace_definitions TARGET VISIBILITY)
+	# Use the right property, PUBLIC and INTERFACE are stored elsewhere.
+	if (NOT ${VISIBILITY} STREQUAL "PRIVATE")
+		set(MPROPERTY_NAME INTERFACE_COMPILE_DEFINITIONS)
+	else()
+		set(MPROPERTY_NAME COMPILE_DEFINITIONS)
+	endif()
+
+	fea_target_replace_definitions_imp(${TARGET} ${VISIBILITY} ${MPROPERTY_NAME} ${ARGN})
+
+	# INTERFACE_COMPILE_DEFINITIONS doesn't mention configuration...
+	# if (${VISIBILITY} STREQUAL "PRIVATE")
+	# endif()
+
+	foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
+		string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG)
+		set(MPROPERTY_NAME ${MPROPERTY_NAME}_${OUTPUTCONFIG})
+
+		# Check if the property exists first. This one isn't a failure if it doesn't.
+		get_target_property(MTEMP ${TARGET} ${MPROPERTY_NAME})
+		if (NOT MTEMP STREQUAL "MTEMP-NOTFOUND")
+			fea_target_replace_definitions_imp(${TARGET} ${VISIBILITY} ${MPROPERTY_NAME} ${ARGN})
+		endif()
+	endforeach(OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES)
 endfunction()
