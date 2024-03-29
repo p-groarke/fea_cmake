@@ -202,7 +202,7 @@ function(fea_pull_conan_imp)
 	# Conan 2.
 	if (IN_CONAN_VER EQUAL 2)
 		# Install user settings to fix msvc toolsets in conan 2.
-		fea_execute_process(COMMAND conan config install ${FEA_CMAKE_DIR}/.conan/settings_user.yml
+		fea_execute_process(COMMAND conan config install ${FEA_CMAKE_DIR}/.conan2/settings_user.yml
 			COMMAND_ECHO STDOUT
 			ERROR_MSG "Couldn't install conan settings_user.xml"
 		)
@@ -225,7 +225,7 @@ function(fea_pull_conan_imp)
 	message(STATUS "Conan arguments : '${IN_CONAN_ARGS}'")
 
 	fea_execute_process(COMMAND conan install ${CMAKE_CURRENT_SOURCE_DIR}
-		${IN_CONAN_ARGS} --build missing --update
+		${IN_CONAN_ARGS} --update
 		COMMAND_ECHO STDOUT
 		ERROR_MSG "Failed to pull conan dependencies."
 	)
@@ -396,5 +396,16 @@ function(fea_whole_program_optimization TARGET VISIBILITY)
 	if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		target_compile_options(${TARGET} ${VISIBILITY} $<$<CONFIG:Release>:/GL>)
 		target_link_options(${TARGET} ${VISIBILITY} $<$<CONFIG:Release>:/LTCG>)
+	endif()
+endfunction()
+
+# Enables -fsanitize-address on target.
+function(fea_sanitize_address TARGET VISIBILITY MCONFIG)
+	if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+		target_compile_options(${TARGET} ${VISIBILITY} $<$<CONFIG:${MCONFIG}>:/fsanitize=address>)
+		# target_link_options(${TARGET} ${VISIBILITY} $<$<CONFIG:${MCONFIG}>:/fsanitize=address>)
+	else()
+		target_compile_options(${TARGET} ${VISIBILITY} $<$<CONFIG:${MCONFIG}>:-fsanitize=address>)
+		target_link_options(${TARGET} ${VISIBILITY} $<$<CONFIG:${MCONFIG}>:-fsanitize=address>)
 	endif()
 endfunction()
