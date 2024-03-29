@@ -1,0 +1,9 @@
+include(default)
+
+# https://docs.conan.io/1/howtos/sanitizers.html
+[settings]
+compiler.sanitizer=AddressUndefinedBehavior
+[env]
+CFLAGS=-fsanitize=address -fsanitize=undefined
+CXXFLAGS=-fsanitize=address -fsanitize=undefined
+LDFLAGS=-fsanitize=address -fsanitize=undefined

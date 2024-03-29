@@ -1,0 +1,8 @@
+include(default)
+
+# https://docs.conan.io/1/howtos/sanitizers.html
+[settings]
+compiler.sanitizer=Address
+[env]
+CFLAGS=/fsanitize=address
+CXXFLAGS=/fsanitize=address
