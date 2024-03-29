@@ -2,6 +2,6 @@
 [settings]
 compiler.sanitizer=AddressUndefinedBehavior
 [env]
-CFLAGS=-fsanitize=address -fsanitize=undefined
-CXXFLAGS=-fsanitize=address -fsanitize=undefined
-LDFLAGS=-fsanitize=address -fsanitize=undefined
+CFLAGS=[-fsanitize=address, -fsanitize=undefined]
+CXXFLAGS=[-fsanitize=address, -fsanitize=undefined]
+LDFLAGS=[-fsanitize=address, -fsanitize=undefined]
