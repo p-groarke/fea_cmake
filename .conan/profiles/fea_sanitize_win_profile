@@ -2,5 +2,5 @@
 [settings]
 compiler.sanitizer=Address
 [env]
-CFLAGS=/fsanitize=address
-CXXFLAGS=/fsanitize=address
+CFLAGS=[/fsanitize=address]
+CXXFLAGS=[/fsanitize=address]
