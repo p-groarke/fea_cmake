@@ -58,9 +58,14 @@ function(fea_import_clangformat)
 	configure_file(${FEA_CMAKE_DIR}/.clang-format ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format COPYONLY)
 endfunction()
 
-# Copies .clang-format from fea_cmake to your base directory.
+# Copies .gitignore from fea_cmake to your base directory.
 function(fea_import_gitignore)
 	configure_file(${FEA_CMAKE_DIR}/.gitignore ${CMAKE_CURRENT_SOURCE_DIR}/.gitignore COPYONLY)
+endfunction()
+
+# Copies .gitattributes from fea_cmake to your base directory.
+function(fea_import_gitattributes)
+	configure_file(${FEA_CMAKE_DIR}/.gitattributes ${CMAKE_CURRENT_SOURCE_DIR}/.gitattributes COPYONLY)
 endfunction()
 
 # Make output directory predictabe
