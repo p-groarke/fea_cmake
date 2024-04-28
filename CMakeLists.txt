@@ -8,6 +8,10 @@ include(GoogleTest)
 include(GenerateExportHeader)
 include(GetPrerequisites)
 
+# When called from functions, current_list_dir and current_source_dir
+# are incorrect. Cache the real path to this cmakelists.txt.
+set(FEA_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
+
 # Applies standard and expected settings to your cmake. Opt-in.
 macro(fea_standard_settings)
 	cmake_policy(SET CMP0054 NEW)
@@ -42,30 +46,30 @@ macro(fea_standard_settings)
 	set(CMAKE_C_STANDARD 11)
 	set(CMAKE_CXX_STANDARD_REQUIRED ON)
 	set(CMAKE_CXX_EXTENSIONS OFF)
-
-	# When called from functions, current_list_dir and current_source_dir
-	# are incorrect. Cache the real path to this cmakelists.txt.
-	set(FEA_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
 endmacro()
 
 # Copies the CMakeLists.fea_cmake.txt file to your base directory.
 function(fea_import_fea_cmake_download)
 	configure_file(${FEA_CMAKE_DIR}/CMakeLists.fea_cmake.txt ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.fea_cmake.txt COPYONLY)
+	# file(COPY ${FEA_CMAKE_DIR}/CMakeLists.fea_cmake.txt DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
 endfunction()
 
 # Copies .clang-format from fea_cmake to your base directory.
 function(fea_import_clangformat)
 	configure_file(${FEA_CMAKE_DIR}/.clang-format ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format COPYONLY)
+	# file(COPY ${FEA_CMAKE_DIR}/.clang-format DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
 endfunction()
 
 # Copies .gitignore from fea_cmake to your base directory.
 function(fea_import_gitignore)
 	configure_file(${FEA_CMAKE_DIR}/.gitignore ${CMAKE_CURRENT_SOURCE_DIR}/.gitignore COPYONLY)
+	# file(COPY ${FEA_CMAKE_DIR}/.gitignore DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
 endfunction()
 
 # Copies .gitattributes from fea_cmake to your base directory.
 function(fea_import_gitattributes)
 	configure_file(${FEA_CMAKE_DIR}/.gitattributes ${CMAKE_CURRENT_SOURCE_DIR}/.gitattributes COPYONLY)
+	# file(COPY ${FEA_CMAKE_DIR}/.gitattributes DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
 endfunction()
 
 # Make output directory predictabe
