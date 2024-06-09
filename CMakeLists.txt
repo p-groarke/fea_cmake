@@ -194,10 +194,19 @@ function(fea_pull_conan_imp)
 	endif()
 
 	if (CONAN_VER EQUAL 1)
-		# execute_process(COMMAND conan user)
+		# Login anonymously, ignore errors.
+		execute_process(COMMAND conan user)
 
 		# Generate a default profile just in case. Ignore error if it already exists.
 		execute_process(COMMAND conan profile new default --detect)
+
+		if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
+			# Fix gcc.
+			fea_execute_process(COMMAND conan profile update settings.compiler.libcxx=libstdc++11 default
+				COMMAND_ECHO STDOUT
+				ERROR_MSG "Failed to set conan 1 libcxx=libstdc++11."
+			)
+		endif()
 
 		# Enable conan revisions (RREV).
 		fea_execute_process(COMMAND conan config set general.revisions_enabled=True
@@ -237,14 +246,27 @@ function(fea_pull_conan_imp)
 				set(IN_CONAN_ARGS "-s compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
 			else()
 				# Conan 2 msvc compiler doesn't want the toolset anymore.
+				# Convert toolset to compiler version.
 				string(REPLACE "v" "" CVER ${IN_CONAN_MSVC_TOOLSET})
 				string(REPLACE "4" "9" CVER ${CVER})
+
+				# To handle vcvars 14.4 issue.
+				string(REPLACE "." ";" MSVC_VERSION_LIST ${CMAKE_VS_VERSION_BUILD_NUMBER})
+				list(GET MSVC_VERSION_LIST 0 MSVC_VERSION_MAJOR)
+				list(GET MSVC_VERSION_LIST 1 MSVC_VERSION_MINOR)
+
+				if (CVER STREQUAL "193" AND MSVC_VERSION_MAJOR EQUAL 17 AND MSVC_VERSION_MINOR GREATER_EQUAL 10)
+					# MSVC 17.10 fucks everyone over.
+					# https://devblogs.microsoft.com/cppblog/msvc-toolset-minor-version-number-14-40-in-vs-2022-v17-10/
+					set(CVER "194")
+				endif()
+
+				# Set the toolset as compiler version "192, 193, etc".
 				set(IN_CONAN_ARGS "-s compiler.version=${CVER} ${IN_CONAN_ARGS}")
 
 				# Set msvc major version for "toolset cross-compiling".
-				string(REPLACE "." ";" MSVC_VERSION_LIST ${CMAKE_VS_VERSION_BUILD_NUMBER})
-				list(GET MSVC_VERSION_LIST 0 MSVC_VERSION_MAJOR)
 				set(IN_CONAN_ARGS "-c tools.microsoft.msbuild:vs_version=${MSVC_VERSION_MAJOR} ${IN_CONAN_ARGS}")
+
 			endif()
 		endif()
 
