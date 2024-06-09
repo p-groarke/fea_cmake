@@ -266,7 +266,6 @@ function(fea_pull_conan_imp)
 
 				# Set msvc major version for "toolset cross-compiling".
 				set(IN_CONAN_ARGS "-c tools.microsoft.msbuild:vs_version=${MSVC_VERSION_MAJOR} ${IN_CONAN_ARGS}")
-
 			endif()
 		endif()
 
