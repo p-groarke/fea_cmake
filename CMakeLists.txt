@@ -157,26 +157,69 @@ function(fea_execute_process)
 	endif()
 endfunction()
 
+function(fea_detect_conan OUT_CONAN_VER)
+	execute_process(
+		COMMAND conan --version
+		RESULT_VARIABLE RET
+		OUTPUT_VARIABLE COUT
+	)
+
+	if (RET AND NOT RET EQUAL 0)
+		message(FATAL_ERROR "${MARGS_ERROR_MSG}\n")
+	endif()
+
+	string(FIND ${COUT} "Conan version " VERSION_IDX REVERSE)
+	if (VERSION_IDX EQUAL -1)
+		message(FATAL_ERROR "Couldn't parse conan version. Is conan installed?")
+	endif()
+
+	string(LENGTH "Conan version " PREFIX_SIZE)
+	math(EXPR VERSION_IDX "${PREFIX_SIZE} + ${VERSION_IDX}")
+	string(SUBSTRING ${COUT} ${VERSION_IDX} 1 COUT)
+
+	string(LENGTH ${COUT} PREFIX_SIZE)
+	if (NOT PREFIX_SIZE EQUAL 1)
+		message(FATAL_ERROR "Invalid conan major version size.")
+	endif()
+
+	message(STATUS "Detected Conan ${COUT}")
+	set(${OUT_CONAN_VER} ${COUT} PARENT_SCOPE)
+endfunction()
 
 # Pulls conan and everything.
 function(fea_pull_conan_imp)
-	set(SINGLE_ARGS CONAN_VER CONAN_BUILD_TYPE CONAN_MSVC_TOOLSET)
+	fea_detect_conan(CONAN_VER)
+	if (NOT CONAN_VER EQUAL 1 AND NOT CONAN_VER EQUAL 2)
+		message(FATAL_ERROR "Unsupported conan version.")
+	endif()
+
+	if (CONAN_VER EQUAL 1)
+		# Generate a default profile just in case. Ignore error if it already exists.
+		execute_process(COMMAND conan profile new default --detect)
+
+		# Enable conan revisions (RREV).
+		fea_execute_process(COMMAND conan config set general.revisions_enabled=True
+			COMMAND_ECHO STDOUT
+			ERROR_MSG "Failed to set conan 1 revisions_enabled."
+		)
+	else()
+		fea_execute_process(COMMAND conan profile detect --exist-ok
+			COMMAND_ECHO STDOUT
+			ERROR_MSG "Failed to create conan 2 default profile."
+		)
+	endif()
+
+	set(SINGLE_ARGS CONAN_BUILD_TYPE CONAN_MSVC_TOOLSET)
 	set(MULTI_ARGS CONAN_ARGS CONAN_ARGS_MSVC CONAN_ARGS_CLANG CONAN_ARGS_GCC)
 	cmake_parse_arguments(IN "" "${SINGLE_ARGS}" "${MULTI_ARGS}" ${ARGN})
 
 	# Sanitize inputs.
-	string(REPLACE ";" " " IN_CONAN_VER "${IN_CONAN_VER}")
 	string(REPLACE ";" " " IN_CONAN_BUILD_TYPE "${IN_CONAN_BUILD_TYPE}")
 	string(REPLACE ";" " " IN_CONAN_MSVC_TOOLSET "${IN_CONAN_MSVC_TOOLSET}")
 	string(REPLACE ";" " " IN_CONAN_ARGS "${IN_CONAN_ARGS}")
 	string(REPLACE ";" " " IN_CONAN_ARGS_MSVC "${IN_CONAN_ARGS_MSVC}")
 	string(REPLACE ";" " " IN_CONAN_ARGS_CLANG "${IN_CONAN_ARGS_CLANG}")
 	string(REPLACE ";" " " IN_CONAN_ARGS_GNU "${IN_CONAN_ARGS_GNU}")
-
-	if (NOT IN_CONAN_VER EQUAL 1 AND NOT IN_CONAN_VER EQUAL 2)
-		message(WARNING "No conan version provided, defaulting to '1'.")
-		set(IN_CONAN_VER 1)
-	endif()
 
 	# Set compile options per platform.
 	if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
@@ -187,14 +230,15 @@ function(fea_pull_conan_imp)
 		set(IN_CONAN_ARGS "${IN_CONAN_ARGS} ${IN_CONAN_ARGS_MSVC}")
 
 		if (NOT IN_CONAN_MSVC_TOOLSET STREQUAL "")
-			# Assuming this OK with added conan 2 toolsets in settings.
-			set(IN_CONAN_ARGS "-s compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
-
-		# TODO : Investigate some more. Maybe conan 2 has a different way to change toolset?
-		# 	if (IN_CONAN_VER EQUAL 1)
-		# 	else()
-		# 		message(STATUS "CONAN_MSVC_TOOLSET skipped in conan 2. Investigation under way.")
-		# 	endif()
+			if (CONAN_VER EQUAL 1)
+				# Life was simple.
+				set(IN_CONAN_ARGS "-s compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
+			else()
+				# Conan 2 msvc compiler doesn't want the toolset anymore.
+				string(REPLACE "v" "" CVER ${IN_CONAN_MSVC_TOOLSET})
+				string(REPLACE "4" "9" CVER ${CVER})
+				set(IN_CONAN_ARGS "-s compiler.version=${CVER} ${IN_CONAN_ARGS}")
+			endif()
 		endif()
 
 		# Cross-compiling to 32bits on Windows.
@@ -204,24 +248,17 @@ function(fea_pull_conan_imp)
 		endif()
 	endif()
 
-	# Conan 1.
-	# if (IN_CONAN_VER EQUAL 1)
+	# Conan 2.
+	# if (CONAN_VER EQUAL 2)
+	# 	# Install user settings to fix msvc toolsets in conan 2.
+	# 	fea_execute_process(COMMAND conan config install ${FEA_CMAKE_DIR}/.conan2/settings_user.yml
+	# 		COMMAND_ECHO STDOUT
+	# 		ERROR_MSG "Couldn't install conan settings_user.xml"
+	# 	)
 	# endif()
 
-	# Conan 2.
-	if (IN_CONAN_VER EQUAL 2)
-		# Install user settings to fix msvc toolsets in conan 2.
-		fea_execute_process(COMMAND conan config install ${FEA_CMAKE_DIR}/.conan2/settings_user.yml
-			COMMAND_ECHO STDOUT
-			ERROR_MSG "Couldn't install conan settings_user.xml"
-		)
-
-		# # output-folder shenanigans
-		# set(IN_CONAN_ARGS "--output-folder ${CMAKE_SOURCE_DIR} ${IN_CONAN_ARGS}")
-	endif()
-
 	# output-folder shenanigans for FetchContent.
-	set(IN_CONAN_ARGS "--output-folder ${CMAKE_SOURCE_DIR} ${IN_CONAN_ARGS}")
+	set(IN_CONAN_ARGS "--output-folder ${CMAKE_BINARY_DIR} ${IN_CONAN_ARGS}")
 
 	# Build-type
 	set(IN_CONAN_ARGS "-s build_type=${IN_CONAN_BUILD_TYPE} ${IN_CONAN_ARGS}")
@@ -247,37 +284,21 @@ endfunction()
 # and they will be appended to the conan call.
 #
 # Supported single-arguments :
-# CONAN_MSVC_TOOLSET, CONAN_VER, CONAN_BUILD_TYPE
+# CONAN_MSVC_TOOLSET, CONAN_BUILD_TYPE
 #
 # Supported multi-arguments :
 # CONAN_ARGS, CONAN_ARGS_CLANG, CONAN_ARGS_GNU, CONAN_ARGS_MSVC
-
-# Conan 1
 function(fea_pull_conan)
-	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 1)
-	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 1)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release)
 endfunction()
 
 function(fea_pull_conan_debug)
-	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 1)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug)
 endfunction()
 
 function(fea_pull_conan_release)
-	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 1)
-endfunction()
-
-# Conan 2
-function(fea_pull_conan2)
-	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 2)
-	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 2)
-endfunction()
-
-function(fea_pull_conan2_debug)
-	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Debug CONAN_VER 2)
-endfunction()
-
-function(fea_pull_conan2_release)
-	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release CONAN_VER 2)
+	fea_pull_conan_imp(${ARGN} CONAN_BUILD_TYPE Release)
 endfunction()
 
 
