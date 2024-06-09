@@ -194,6 +194,8 @@ function(fea_pull_conan_imp)
 	endif()
 
 	if (CONAN_VER EQUAL 1)
+		# execute_process(COMMAND conan user)
+
 		# Generate a default profile just in case. Ignore error if it already exists.
 		execute_process(COMMAND conan profile new default --detect)
 
@@ -238,6 +240,11 @@ function(fea_pull_conan_imp)
 				string(REPLACE "v" "" CVER ${IN_CONAN_MSVC_TOOLSET})
 				string(REPLACE "4" "9" CVER ${CVER})
 				set(IN_CONAN_ARGS "-s compiler.version=${CVER} ${IN_CONAN_ARGS}")
+
+				# Set msvc major version for "toolset cross-compiling".
+				string(REPLACE "." ";" MSVC_VERSION_LIST ${CMAKE_VS_VERSION_BUILD_NUMBER})
+				list(GET MSVC_VERSION_LIST 0 MSVC_VERSION_MAJOR)
+				set(IN_CONAN_ARGS "-c tools.microsoft.msbuild:vs_version=${MSVC_VERSION_MAJOR} ${IN_CONAN_ARGS}")
 			endif()
 		endif()
 
@@ -248,7 +255,6 @@ function(fea_pull_conan_imp)
 		endif()
 	endif()
 
-	# Conan 2.
 	# if (CONAN_VER EQUAL 2)
 	# 	# Install user settings to fix msvc toolsets in conan 2.
 	# 	fea_execute_process(COMMAND conan config install ${FEA_CMAKE_DIR}/.conan2/settings_user.yml
