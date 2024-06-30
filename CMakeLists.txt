@@ -12,6 +12,9 @@ include(GetPrerequisites)
 # are incorrect. Cache the real path to this cmakelists.txt.
 set(FEA_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
+# The detected conan version. Call fea_detect_conan to initialize.
+set(FEA_CONAN_VER -1)
+
 # Applies standard and expected settings to your cmake. Opt-in.
 macro(fea_standard_settings)
 	cmake_policy(SET CMP0054 NEW)
@@ -158,6 +161,11 @@ function(fea_execute_process)
 endfunction()
 
 function(fea_detect_conan OUT_CONAN_VER)
+	if (NOT FEA_CONAN_VER EQUAL -1)
+		set(${OUT_CONAN_VER} ${FEA_CONAN_VER} PARENT_SCOPE)
+		return()
+	endif()
+
 	execute_process(
 		COMMAND conan --version
 		RESULT_VARIABLE RET
@@ -184,6 +192,7 @@ function(fea_detect_conan OUT_CONAN_VER)
 
 	message(STATUS "Detected Conan ${COUT}")
 	set(${OUT_CONAN_VER} ${COUT} PARENT_SCOPE)
+	set(FEA_CONAN_VER ${COUT} PARENT_SCOPE)
 endfunction()
 
 # Pulls conan and everything.
