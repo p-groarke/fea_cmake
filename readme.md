@@ -2,7 +2,7 @@
 
 CMake helpers.
 
-### Update .glang-format
+### Update .clang-format
 ```bash
 clang-format --style=file --dump-config > .new-clang-format
 ```

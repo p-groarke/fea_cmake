@@ -48,7 +48,8 @@ os:
         version: [None, "10.6", "10.7", "10.8", "10.9", "10.10", "10.11", "10.12", "10.13", "10.14", "10.15", "11.0", "12.0", "13.0",
                   "14.0", "14.1"]
         sdk: [None, "macosx"]
-        sdk_version: [None, "10.13", "10.14", "10.15", "11.0", "11.1", "11.3", "12.0", "12.1", "12.3", "13.0", "13.1"]
+        sdk_version: [None, "10.13", "10.14", "10.15", "11.0", "11.1", "11.3", "12.0", "12.1", "12.3", "13.0", "13.1", "14.0", "14.1",
+                  "14.3", "15.0", "15.1", "15.3"]
         subsystem:
             None:
             catalyst:
@@ -118,7 +119,7 @@ compiler:
         sanitizer: [None, Address, Thread, Memory, UndefinedBehavior, AddressUndefinedBehavior]
     apple-clang: &apple_clang
         version: ["5.0", "5.1", "6.0", "6.1", "7.0", "7.3", "8.0", "8.1", "9.0", "9.1",
-                  "10.0", "11.0", "12.0", "13", "13.0", "13.1", "14", "14.0", "15", "15.0"]
+                  "10.0", "11.0", "12.0", "13", "13.0", "13.1", "14", "14.0", "15", "15.0", "16", "16.0", "17", "17.0"]
         libcxx: [libstdc++, libc++]
         cppstd: [None, 98, gnu98, 11, gnu11, 14, gnu14, 17, gnu17, 20, gnu20, 23, gnu23]
         sanitizer: [None, Address, Thread, Memory, UndefinedBehavior, AddressUndefinedBehavior]
