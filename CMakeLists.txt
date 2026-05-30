@@ -203,6 +203,12 @@ function(fea_pull_conan_imp)
 	endif()
 
 	if (CONAN_VER EQUAL 1)
+		set(SETTINGS_OPT "--settings")
+	else()
+		set(SETTINGS_OPT "--settings:all")
+	endif()
+
+	if (CONAN_VER EQUAL 1)
 		# Login anonymously, ignore errors.
 		execute_process(COMMAND conan user)
 
@@ -252,7 +258,7 @@ function(fea_pull_conan_imp)
 		if (NOT IN_CONAN_MSVC_TOOLSET STREQUAL "")
 			if (CONAN_VER EQUAL 1)
 				# Life was simple.
-				set(IN_CONAN_ARGS "-s compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
+				set(IN_CONAN_ARGS "${SETTINGS_OPT} compiler.toolset=${IN_CONAN_MSVC_TOOLSET} ${IN_CONAN_ARGS}")
 			else()
 				# Conan 2 msvc compiler doesn't want the toolset anymore.
 				# Convert toolset to compiler version.
@@ -271,7 +277,7 @@ function(fea_pull_conan_imp)
 				endif()
 
 				# Set the toolset as compiler version "192, 193, etc".
-				set(IN_CONAN_ARGS "-s compiler.version=${CVER} ${IN_CONAN_ARGS}")
+				set(IN_CONAN_ARGS "${SETTINGS_OPT} compiler.version=${CVER} ${IN_CONAN_ARGS}")
 
 				# Set msvc major version for "toolset cross-compiling".
 				set(IN_CONAN_ARGS "-c tools.microsoft.msbuild:vs_version=${MSVC_VERSION_MAJOR} ${IN_CONAN_ARGS}")
@@ -281,7 +287,7 @@ function(fea_pull_conan_imp)
 		# Cross-compiling to 32bits on Windows.
 		if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES AMD64 AND CMAKE_GENERATOR_PLATFORM MATCHES Win32)
 			message(STATUS "Cross-compiling to 32bits.")
-			set(IN_CONAN_ARGS "-s arch=x86 ${IN_CONAN_ARGS}")
+			set(IN_CONAN_ARGS "${SETTINGS_OPT} arch=x86 ${IN_CONAN_ARGS}")
 		endif()
 	endif()
 
@@ -297,10 +303,10 @@ function(fea_pull_conan_imp)
 	set(IN_CONAN_ARGS "--output-folder ${CMAKE_BINARY_DIR} ${IN_CONAN_ARGS}")
 
 	# Build-type
-	set(IN_CONAN_ARGS "-s build_type=${IN_CONAN_BUILD_TYPE} ${IN_CONAN_ARGS}")
+	set(IN_CONAN_ARGS "${SETTINGS_OPT} build_type=${IN_CONAN_BUILD_TYPE} ${IN_CONAN_ARGS}")
 
 	# cppstd
-	set(IN_CONAN_ARGS "-s compiler.cppstd=${CMAKE_CXX_STANDARD} ${IN_CONAN_ARGS}")
+	set(IN_CONAN_ARGS "${SETTINGS_OPT} compiler.cppstd=${CMAKE_CXX_STANDARD} ${IN_CONAN_ARGS}")
 
 	# Finally, sanitize and call conan.
 	separate_arguments(IN_CONAN_ARGS UNIX_COMMAND "${IN_CONAN_ARGS}")
